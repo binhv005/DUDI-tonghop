@@ -2852,12 +2852,12 @@ button {
    ========================================================================== */
 .ai-chat-modal {
   position: fixed;
-  bottom: 5.8rem;
-  right: 1.5rem;
+  bottom: 1.5rem;
+  right: 6.8rem;
   width: 380px;
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100vw - 8.5rem);
   height: 540px;
-  max-height: calc(100vh - 7.5rem);
+  max-height: calc(100vh - 3.5rem);
   background: #f8fafc;
   border-radius: 26px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(226, 232, 240, 0.9);
@@ -3109,11 +3109,59 @@ button {
   }
 }
 
-/* Chat Footer Input */
-.ai-chat-footer {
-  padding: 0.85rem 1.15rem 1.15rem;
+/* Suggested Quick Questions Bar */
+.chat-suggestions-bar {
+  padding: 0.55rem 1rem 0.6rem;
   background: #ffffff;
   border-top: 1px solid #f1f5f9;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-suggestions-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.suggestions-scroll-track {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: max-content;
+}
+
+.chat-suggestion-chip {
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+}
+
+.chat-suggestion-chip:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4f46e5;
+  transform: translateY(-1.5px);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+}
+
+.chat-suggestion-chip:active {
+  transform: translateY(0);
+}
+
+/* Chat Footer Input */
+.ai-chat-footer {
+  padding: 0.6rem 1.15rem 1rem;
+  background: #ffffff;
+  border-top: none;
 }
 
 .chat-input-wrapper {
@@ -3172,12 +3220,15 @@ button {
   opacity: 0.65;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .ai-chat-modal {
     right: 1rem;
-    bottom: 5.5rem;
-    width: calc(100vw - 2rem);
-    height: 480px;
+    left: 1rem;
+    bottom: 6.5rem;
+    width: auto;
+    max-width: none;
+    height: 500px;
+    max-height: calc(100vh - 8rem);
     border-radius: 22px;
   }
 }

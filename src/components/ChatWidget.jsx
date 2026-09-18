@@ -35,6 +35,14 @@ const BOT_RESPONSES = [
   "Tuyệt vời! Nếu bạn có bất kỳ câu hỏi nào về thiết kế, công nghệ hay tích hợp hệ thống, tôi luôn sẵn sàng hỗ trợ 🚀."
 ];
 
+const SUGGESTED_PROMPTS = [
+  "💡 DUDI cung cấp dịch vụ gì?",
+  "🚀 Tư vấn thiết kế App & Web",
+  "🤖 Tích hợp AI Chatbot",
+  "⚡ Báo giá & Quy trình",
+  "📞 Liên hệ hotline DUDI"
+];
+
 export const ChatWidget = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
@@ -126,6 +134,40 @@ export const ChatWidget = ({ isOpen, onClose }) => {
       setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
     }, 900);
+  };
+
+  const handleSelectPrompt = (promptText) => {
+    const userMsg = {
+      id: Date.now(),
+      sender: 'user',
+      text: promptText,
+      time: getCurrentTime()
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setIsTyping(true);
+
+    setTimeout(() => {
+      let reply = BOT_RESPONSES[Math.floor(Math.random() * BOT_RESPONSES.length)];
+      if (promptText.includes('dịch vụ') || promptText.includes('DUDI cung cấp')) {
+        reply = "DUDI cung cấp hệ sinh thái toàn diện: Thiết kế App/Web chuyên sâu, Vận hành tối ưu hiệu năng và Ứng dụng AI thông minh. Bạn có thể lướt danh sách dịch vụ ngay trên trang web!";
+      } else if (promptText.includes('hotline') || promptText.includes('Liên hệ')) {
+        reply = "Bạn có thể gọi trực tiếp đến Hotline: 0909 163 821 hoặc nhấn nút Zalo ở góc màn hình để được hỗ trợ 24/7 nhé! 📞";
+      } else if (promptText.includes('Báo giá') || promptText.includes('Quy trình')) {
+        reply = "DUDI cung cấp nhiều gói giải pháp linh hoạt phù hợp với quy mô từ Startup đến Doanh nghiệp lớn. Hãy liên hệ với chúng tôi để nhận bảng báo giá chi tiết!";
+      } else if (promptText.includes('AI')) {
+        reply = "Giải pháp AI của DUDI bao gồm trợ lý ảo thông minh, tự động hóa CSKH 24/7 và hệ thống phân tích dữ liệu nâng cao trải nghiệm người dùng.";
+      }
+
+      const botMsg = {
+        id: Date.now() + 1,
+        sender: 'bot',
+        text: reply,
+        time: getCurrentTime()
+      };
+      setMessages((prev) => [...prev, botMsg]);
+      setIsTyping(false);
+    }, 850);
   };
 
   const handleResetChat = () => {
@@ -229,6 +271,22 @@ export const ChatWidget = ({ isOpen, onClose }) => {
         )}
 
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggested Quick Questions */}
+      <div className="chat-suggestions-bar">
+        <div className="suggestions-scroll-track">
+          {SUGGESTED_PROMPTS.map((prompt, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className="chat-suggestion-chip"
+              onClick={() => handleSelectPrompt(prompt)}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Footer Input */}
