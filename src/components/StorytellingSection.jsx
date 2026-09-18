@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SERVICES_DATA } from '../data/servicesData';
-import { ChevronLeft, Target } from 'lucide-react';
 import { SpaceMotifs } from './SpaceMotifs';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -423,12 +422,6 @@ export const StorytellingSection = () => {
                               <div className="stage-ring ring-3"></div>
                               <div className="stage-ring ring-2"></div>
                               <div className="stage-ring ring-1"></div>
-                            </div>
-
-                            <div className="card-top-nav">
-                              <ChevronLeft size={18} className="top-nav-icon" />
-                              <span className="top-nav-title">{project.categoryName || 'DUDI APP'}</span>
-                              <Target size={18} className="top-nav-icon" />
                             </div>
                           </div>
 
