@@ -1,16 +1,13 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { StorytellingSection } from './components/StorytellingSection';
 import { HeroSection } from './components/HeroSection';
 import { ServiceCard } from './components/ServiceCard';
-import { Footer } from './components/Footer';
 import { FloatingWidget } from './components/FloatingWidget';
 import { SERVICES_DATA } from './data/servicesData';
-import { SearchX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export function App() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -18,33 +15,6 @@ export function App() {
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeftStart = useRef(0);
-
-  // Category counts calculation
-  const categoryCounts = useMemo(() => {
-    const counts = { all: SERVICES_DATA.length, web: 0, maintenance: 0, seo: 0, pricing: 0 };
-    SERVICES_DATA.forEach(item => {
-      if (counts[item.category] !== undefined) {
-        counts[item.category]++;
-      }
-    });
-    return counts;
-  }, []);
-
-  // Filtered services
-  const filteredServices = useMemo(() => {
-    return SERVICES_DATA.filter(service => {
-      const matchesCategory = activeCategory === 'all' || service.category === activeCategory;
-      const cleanQuery = searchQuery.trim().toLowerCase();
-      
-      const matchesSearch = !cleanQuery || 
-        service.title.toLowerCase().includes(cleanQuery) ||
-        service.description.toLowerCase().includes(cleanQuery) ||
-        service.keywords.toLowerCase().includes(cleanQuery) ||
-        service.categoryName.toLowerCase().includes(cleanQuery);
-
-      return matchesCategory && matchesSearch;
-    });
-  }, [searchQuery, activeCategory]);
 
   // Check scroll position for slider arrows
   const checkSliderScroll = () => {
@@ -67,12 +37,13 @@ export function App() {
       }
       window.removeEventListener('resize', checkSliderScroll);
     };
-  }, [filteredServices]);
+  }, []);
 
   const handleScrollSlider = (direction) => {
     if (!sliderRef.current) return;
     const firstItem = sliderRef.current.querySelector('.slider-item');
-    const scrollAmount = firstItem ? (firstItem.offsetWidth + 24) : 410;
+    const computedGap = parseFloat(window.getComputedStyle(sliderRef.current).gap) || 24;
+    const scrollAmount = firstItem ? (firstItem.offsetWidth + computedGap) : 410;
     sliderRef.current.scrollBy({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth'
@@ -105,18 +76,6 @@ export function App() {
     sliderRef.current.style.removeProperty('user-select');
   };
 
-  const handleScrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  };
-
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setActiveCategory('all');
-  };
-
   return (
     <div className="app-wrapper">
       {/* Ambient Glows */}
@@ -132,77 +91,53 @@ export function App() {
       <main>
         <section className="hero-section" id="services">
           <div className="container">
-            <HeroSection 
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              activeCategory={activeCategory}
-              setActiveCategory={setActiveCategory}
-              categoryCounts={categoryCounts}
-            />
+            <HeroSection />
 
             {/* Slider Navigation Bar */}
-            {filteredServices.length > 0 && (
-              <div className="slider-header-controls">
-                <span className="slider-hint">
-                  <span className="dot-active"></span>
-                  Kéo hoặc trượt sang ngang để xem tất cả {filteredServices.length} dịch vụ
-                </span>
+            <div className="slider-header-controls">
+              <span className="slider-hint">
+                <span className="dot-active"></span>
+                Kéo hoặc trượt sang ngang để xem tất cả {SERVICES_DATA.length} dịch vụ
+              </span>
 
-                <div className="slider-nav-buttons">
-                  <button 
-                    className={`btn-slider-arrow ${!canScrollLeft ? 'disabled' : ''}`}
-                    onClick={() => handleScrollSlider('left')}
-                    disabled={!canScrollLeft}
-                    aria-label="Trượt sang trái"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button 
-                    className={`btn-slider-arrow ${!canScrollRight ? 'disabled' : ''}`}
-                    onClick={() => handleScrollSlider('right')}
-                    disabled={!canScrollRight}
-                    aria-label="Trượt sang phải"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 1 Row Horizontal Carousel/Slider */}
-            {filteredServices.length > 0 ? (
-              <div 
-                ref={sliderRef}
-                className="services-slider"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUpOrLeave}
-                onMouseLeave={handleMouseUpOrLeave}
-              >
-                {filteredServices.map(service => (
-                  <div key={service.id} className="slider-item">
-                    <ServiceCard service={service} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* No Results */
-              <div className="no-results">
-                <div className="no-results-icon">
-                  <SearchX size={32} />
-                </div>
-                <h3>Không tìm thấy dịch vụ phù hợp</h3>
-                <p>Thử tìm kiếm với từ khóa khác như "Landing page", "Bảo trì", "Website", "SEO" hoặc xóa bộ lọc.</p>
-                <button className="btn btn-outline" onClick={handleResetFilters}>
-                  Xem tất cả dịch vụ
+              <div className="slider-nav-buttons">
+                <button 
+                  className={`btn-slider-arrow ${!canScrollLeft ? 'disabled' : ''}`}
+                  onClick={() => handleScrollSlider('left')}
+                  disabled={!canScrollLeft}
+                  aria-label="Trượt sang trái"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button 
+                  className={`btn-slider-arrow ${!canScrollRight ? 'disabled' : ''}`}
+                  onClick={() => handleScrollSlider('right')}
+                  disabled={!canScrollRight}
+                  aria-label="Trượt sang phải"
+                >
+                  <ChevronRight size={20} />
                 </button>
               </div>
-            )}
+            </div>
+
+            {/* 1 Row Horizontal Carousel/Slider */}
+            <div 
+              ref={sliderRef}
+              className="services-slider"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUpOrLeave}
+              onMouseLeave={handleMouseUpOrLeave}
+            >
+              {SERVICES_DATA.map(service => (
+                <div key={service.id} className="slider-item">
+                  <ServiceCard service={service} />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </main>
-
-      <Footer onScrollToTop={handleScrollToTop} />
 
       {/* Floating Action Buttons Widget (Call, Zalo, Scroll-to-top) */}
       <FloatingWidget />

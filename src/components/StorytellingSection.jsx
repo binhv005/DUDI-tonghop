@@ -2,12 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SERVICES_DATA } from '../data/servicesData';
-import {
-  ArrowUpRight,
-  ExternalLink,
-  Sparkles,
-  CheckCircle2
-} from 'lucide-react';
+import { ChevronLeft, Target } from 'lucide-react';
+import { SpaceMotifs } from './SpaceMotifs';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -16,6 +12,49 @@ const FRAME_PATHS = Array.from({ length: TOTAL_FRAMES }, (_, i) => {
   const pad = String(i + 1).padStart(3, '0');
   return `/robot-frames/ezgif-frame-${pad}.png`;
 });
+
+const PROJECT_THEMES = [
+  {
+    bgGradient: 'linear-gradient(165deg, #c084fc 0%, #8b5cf6 45%, #6b21a8 100%)',
+    accentColor: '#8b5cf6',
+    cardShadow: '0 24px 55px rgba(139, 92, 246, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #38bdf8 0%, #0284c7 45%, #0369a1 100%)',
+    accentColor: '#0284c7',
+    cardShadow: '0 24px 55px rgba(2, 132, 199, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #34d399 0%, #059669 45%, #047857 100%)',
+    accentColor: '#059669',
+    cardShadow: '0 24px 55px rgba(5, 150, 105, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #fb923c 0%, #ea580c 45%, #c2410c 100%)',
+    accentColor: '#ea580c',
+    cardShadow: '0 24px 55px rgba(234, 88, 12, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #fb7185 0%, #e11d48 45%, #be123c 100%)',
+    accentColor: '#e11d48',
+    cardShadow: '0 24px 55px rgba(225, 29, 72, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #818cf8 0%, #4f46e5 45%, #3730a3 100%)',
+    accentColor: '#4f46e5',
+    cardShadow: '0 24px 55px rgba(79, 70, 229, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #facc15 0%, #d97706 45%, #b45309 100%)',
+    accentColor: '#d97706',
+    cardShadow: '0 24px 55px rgba(217, 119, 6, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  },
+  {
+    bgGradient: 'linear-gradient(165deg, #2dd4bf 0%, #0d9488 45%, #115e59 100%)',
+    accentColor: '#0d9488',
+    cardShadow: '0 24px 55px rgba(13, 148, 136, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35)'
+  }
+];
 
 export const StorytellingSection = () => {
   const sectionRef = useRef(null);
@@ -27,13 +66,12 @@ export const StorytellingSection = () => {
   // State for content presentation
   const [currentFrameIndex, setCurrentFrameIndex] = useState(1);
   const [activeProjectIndex, setActiveProjectIndex] = useState(-1);
+  const [cardDeckScrollPos, setCardDeckScrollPos] = useState(0); // 0.0 to 7.0 continuous float
   const [projectProgress, setProjectProgress] = useState(0); // 0 to 1 reveal for Project 01 in Phase B
   const [introOpacity, setIntroOpacity] = useState(1);
   const [introTranslateX, setIntroTranslateX] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
   const [panelOpacity, setPanelOpacity] = useState(1);
-  const [panelTranslateY, setPanelTranslateY] = useState(0);
-  const [panelScale, setPanelScale] = useState(1);
 
   // 1. High-performance canvas drawing
   const drawFrame = (frameNum) => {
@@ -117,6 +155,7 @@ export const StorytellingSection = () => {
   useEffect(() => {
     const handleResize = () => {
       drawFrame(currentFrameIndex);
+      ScrollTrigger.refresh();
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -138,13 +177,6 @@ export const StorytellingSection = () => {
         const p = self.progress; // 0 to 1
         setOverallProgress(p);
 
-        /* =========================================================================
-           SCROLL PROGRESS DIVISION:
-           Phase A (p: 0.00 -> 0.18): Frames 1 -> 17 (Intro visible, Character turns)
-           Phase B (p: 0.18 -> 0.28): Frames 18 -> 23 (Character turns, Project 01 reveals)
-           Phase C (p: 0.28 -> 1.00): Frame 23 LOCKED (Character stays fixed, Projects 1-8 cycle)
-           ========================================================================= */
-
         if (p < 0.18) {
           // PHASE A: Frame 1 to 17
           const phaseProgress = p / 0.18; // 0 to 1
@@ -159,6 +191,7 @@ export const StorytellingSection = () => {
           setIntroTranslateX(-phaseProgress * 25);
 
           setActiveProjectIndex(-1);
+          setCardDeckScrollPos(0);
           setProjectProgress(0);
           setPanelOpacity(0);
         } else if (p >= 0.18 && p < 0.28) {
@@ -171,50 +204,28 @@ export const StorytellingSection = () => {
 
           setIntroOpacity(0);
           setActiveProjectIndex(0); // Project 01
+          setCardDeckScrollPos(0);
           setProjectProgress(phaseProgress); // 0 to 1
           setPanelOpacity(phaseProgress);
-          setPanelTranslateY((1 - phaseProgress) * 30);
-          setPanelScale(0.95 + phaseProgress * 0.05);
         } else {
-          // PHASE C: After Frame 23 -> LOCKED AT FRAME 23
+          // PHASE C: After Frame 23 -> LOCKED AT FRAME 23 (HORIZONTAL STACKED CARDS SLIDE)
           setCurrentFrameIndex(23);
           drawFrame(23);
 
           setIntroOpacity(0);
           setProjectProgress(1);
+          setPanelOpacity(1);
 
           // Projects 01 -> 08 mapping (8 projects)
           const phaseProgress = (p - 0.28) / 0.72; // 0 to 1
           const totalProjects = SERVICES_DATA.length; // 8
 
-          const rawIndex = phaseProgress * totalProjects;
-          const projectIdx = Math.min(totalProjects - 1, Math.max(0, Math.floor(rawIndex)));
-          const itemOffset = rawIndex - projectIdx; // 0.0 to 1.0 within the current project
+          // Smooth continuous float from 0.0 to 7.0
+          const continuousScroll = Math.min(totalProjects - 1, Math.max(0, phaseProgress * (totalProjects - 1)));
+          setCardDeckScrollPos(continuousScroll);
 
+          const projectIdx = Math.min(totalProjects - 1, Math.max(0, Math.round(continuousScroll)));
           setActiveProjectIndex(projectIdx);
-
-          // Continuous scroll interpolation for smooth page transitions
-          let op = 1;
-          let ty = 0;
-          let sc = 1;
-
-          if (itemOffset < 0.18 && projectIdx > 0) {
-            // Smooth entrance from below
-            const enterP = itemOffset / 0.18;
-            op = enterP;
-            ty = (1 - enterP) * 32;
-            sc = 0.94 + enterP * 0.06;
-          } else if (itemOffset > 0.82 && projectIdx < totalProjects - 1) {
-            // Smooth exit gliding up
-            const exitP = (itemOffset - 0.82) / 0.18;
-            op = 1 - exitP;
-            ty = -exitP * 32;
-            sc = 1 + exitP * 0.04;
-          }
-
-          setPanelOpacity(op);
-          setPanelTranslateY(ty);
-          setPanelScale(sc);
         }
       }
     });
@@ -224,17 +235,38 @@ export const StorytellingSection = () => {
     };
   }, []);
 
+  const scrollToProject = (targetIndex) => {
+    if (!sectionRef.current) return;
+    const totalProjects = SERVICES_DATA.length;
+    // Map project index (0..7) to overall scroll progress in StorytellingSection
+    // Phase C runs from p = 0.28 to 1.0 (range 0.72)
+    const targetProgress = 0.28 + (targetIndex / (totalProjects - 1)) * 0.72;
+    
+    // Calculate page scroll position
+    const sectionTop = sectionRef.current.offsetTop;
+    const sectionScrollLength = 6000; // end: '+=6000'
+    const targetScrollY = sectionTop + targetProgress * sectionScrollLength;
+    
+    window.scrollTo({
+      top: targetScrollY,
+      behavior: 'smooth'
+    });
+  };
+
   const activeProject = activeProjectIndex >= 0 ? SERVICES_DATA[activeProjectIndex] : null;
+  const currentTheme = activeProjectIndex >= 0 ? PROJECT_THEMES[activeProjectIndex % PROJECT_THEMES.length] : PROJECT_THEMES[0];
 
   return (
     <section className="storytelling-wrapper" ref={sectionRef} id="story-section">
       <div className="storytelling-pin" ref={pinContainerRef}>
-        {/* Full-size Fixed Background Image (Zero scroll, full display, sharp) */}
-        <img
-          src="/images/71a06d45-b769-4910-b039-e4d1fb3ca484.png"
-          alt="DUDI Background"
-          className="story-bg-image-fixed"
-        />
+        {/* Modern Tech Background Ambient Effects */}
+        <div className="tech-bg-canvas">
+          <div className="tech-grid-mesh"></div>
+          <div className="tech-glow-orb tech-glow-left"></div>
+          <div className="tech-glow-orb tech-glow-right"></div>
+          <div className="tech-glow-orb tech-glow-bottom"></div>
+          <SpaceMotifs />
+        </div>
 
         {/* Global Journey Progress Bar */}
         <div className="story-progress-indicator">
@@ -242,7 +274,7 @@ export const StorytellingSection = () => {
         </div>
 
         <div className="story-inner-full">
-          {/* Main 2-Column Split: LEFT = HERO ROBOT (TOÀN MÀN HÌNH BÊN TRÁI), RIGHT = NỘI DUNG NỬA BÊN PHẢI */}
+          {/* Main 2-Column Split: LEFT = HERO ROBOT, RIGHT = CONTENT */}
           <div className="story-split-grid">
 
             {/* LEFT HALF: Hero Robot Character Full-Screen Canvas */}
@@ -289,112 +321,143 @@ export const StorytellingSection = () => {
                 </p>
               </div>
 
-              {/* STATE 2 & 3: PHASE B & C - 8 PROJECTS SHOWCASE */}
+              {/* STATE 2 & 3: PHASE B & C - 8 STACKED HORIZONTAL SLIDING CARDS */}
               {activeProject && (
                 <div
-                  key={activeProject.id}
                   className="story-project-panel active"
                   style={{
                     opacity: panelOpacity,
-                    transform: `translateY(${panelTranslateY}px) scale(${panelScale})`,
-                    transformOrigin: 'center center',
                     willChange: 'transform, opacity'
                   }}
                 >
-                  {/* Top Header Banner Above Card */}
-                  <div className="project-top-banner animate-enter-1">
-                    <div className="project-step-header">
-                      <span className="project-counter-pill">
-                        <span className="counter-current">{String(activeProjectIndex + 1).padStart(2, '0')}</span>
-                        <span className="counter-sep">/</span>
-                        <span className="counter-total">{String(SERVICES_DATA.length).padStart(2, '0')}</span>
-                      </span>
-                      {activeProject.categoryName && (
-                        <span className="project-category-badge">
-                          <Sparkles size={11} className="cat-sparkle-icon" />
-                          {activeProject.categoryName}
-                        </span>
-                      )}
-                      {activeProject.badge && (
-                        <span className="project-price-badge">
-                          {activeProject.badge}
-                        </span>
-                      )}
-                    </div>
+                  {/* Horizontal Stacked Card Deck */}
+                  <div className="stacked-deck-container">
+                    {SERVICES_DATA.map((project, idx) => {
+                      const theme = PROJECT_THEMES[idx % PROJECT_THEMES.length];
+                      const delta = idx - cardDeckScrollPos; // relative offset to current scroll position
 
-                    {/* Project Headline / Title */}
-                    <h2 className="project-headline">
-                      {activeProject.title}
-                    </h2>
-                  </div>
+                      // 3D Horizontal Stacked Slider calculations
+                      let tx = 0;
+                      let ty = 0;
+                      let sc = 1;
+                      let op = 1;
+                      let rot = 0;
+                      let zIdx = 100 - idx;
+                      let filter = 'none';
+                      let isClickable = false;
 
-                  {/* 2-Column Split Glassmorphic Preview Card */}
-                  <div className="project-split-card animate-enter-2">
-                    
-                    {/* LEFT HALF: Image Preview */}
-                    <div className="card-left-media">
-                      <div className="card-image-wrap">
-                        <img
-                          src={activeProject.image}
-                          alt={activeProject.title}
-                          className="card-preview-img"
+                      if (delta < -0.05) {
+                        // Past card: slides out smoothly to the left
+                        tx = delta * 450;
+                        ty = Math.abs(delta) * 10;
+                        sc = Math.max(0.74, 1 + delta * 0.12);
+                        rot = delta * 6;
+                        op = Math.max(0, 1 + delta * 1.5);
+                        zIdx = 50 + idx;
+                        filter = `brightness(${Math.max(0.7, 1 + delta * 0.3)})`;
+                        isClickable = delta > -1.2;
+                      } else if (delta <= 0.05) {
+                        // Active foreground card
+                        tx = delta * 450;
+                        ty = 0;
+                        sc = 1;
+                        rot = delta * 6;
+                        op = 1;
+                        zIdx = 100;
+                        filter = 'brightness(1)';
+                        isClickable = true;
+                      } else {
+                        // Upcoming stacked cards: layered to the right behind the active card
+                        const stackDist = Math.min(delta, 3.2);
+                        tx = stackDist * 46; // prominent horizontal stack offset to right
+                        ty = -stackDist * 6; // slightly stepped up for clean stacking
+                        sc = Math.max(0.76, 1 - stackDist * 0.068); // progressively scaled down
+                        rot = stackDist * 2.2; // subtle fan-out rotation
+                        op = delta > 3.2 ? 0 : Math.max(0, 1 - stackDist * 0.22); // smooth fade for deep stack
+                        zIdx = 100 - idx;
+                        filter = `brightness(${Math.max(0.72, 1 - stackDist * 0.09)})`;
+                        isClickable = delta < 2.5;
+                      }
+
+                      if (op <= 0.01) return null;
+
+                      return (
+                        <div
+                          key={project.id}
+                          className={`hero-app-sample-card stacked-deck-card ${idx === activeProjectIndex ? 'is-active' : 'is-stacked'}`}
                           style={{
-                            objectPosition: activeProject.imagePosition || 'center'
+                            background: theme.bgGradient,
+                            boxShadow: theme.cardShadow,
+                            transform: `translate3d(${tx}px, ${ty}px, 0) scale(${sc}) rotate(${rot}deg)`,
+                            opacity: op,
+                            zIndex: zIdx,
+                            filter,
+                            cursor: idx !== activeProjectIndex && isClickable ? 'pointer' : 'default',
+                            pointerEvents: isClickable ? 'auto' : 'none'
                           }}
-                          onError={(e) => {
-                            if (activeProject.fallbackImage) {
-                              e.currentTarget.src = activeProject.fallbackImage;
+                          onClick={() => {
+                            if (idx !== activeProjectIndex && isClickable) {
+                              scrollToProject(idx);
                             }
                           }}
-                        />
-                        <div className="card-image-overlay"></div>
-
-                        {/* Floating Red Arrow Button (Top Right of Image) */}
-                        <a
-                          href={activeProject.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="preview-float-arrow-btn"
-                          aria-label="Truy cập trang web"
                         >
-                          <ArrowUpRight size={18} />
-                        </a>
-                      </div>
-                    </div>
+                          {/* Top Half: Full-Width Image Stage with Curved Arc Bottom */}
+                          <div className="card-top-image-stage">
+                            <img
+                              src={project.image}
+                              alt={project.title}
+                              className="stage-cover-img"
+                              style={{
+                                objectPosition: project.imagePosition || 'center'
+                              }}
+                              onError={(e) => {
+                                if (project.fallbackImage) {
+                                  e.currentTarget.src = project.fallbackImage;
+                                }
+                              }}
+                            />
 
-                    {/* RIGHT HALF: Website & Service Information */}
-                    <div className="card-right-info">
-                      {/* Description */}
-                      <p className="card-desc-text">
-                        {activeProject.description}
-                      </p>
+                            <div className="stage-theme-overlay"></div>
 
-                      {/* Key Features Bullets */}
-                      {activeProject.features && activeProject.features.length > 0 && (
-                        <div className="card-features-box">
-                          {activeProject.features.slice(0, 3).map((feat, idx) => (
-                            <div key={idx} className="card-feature-row">
-                              <CheckCircle2 size={13} className="feature-check-icon" />
-                              <span>{feat.text}</span>
+                            <div className="stage-radar-overlay">
+                              <div className="stage-ring ring-3"></div>
+                              <div className="stage-ring ring-2"></div>
+                              <div className="stage-ring ring-1"></div>
                             </div>
-                          ))}
+
+                            <div className="card-top-nav">
+                              <ChevronLeft size={18} className="top-nav-icon" />
+                              <span className="top-nav-title">{project.categoryName || 'DUDI APP'}</span>
+                              <Target size={18} className="top-nav-icon" />
+                            </div>
+                          </div>
+
+                          {/* Bottom Half: Clean White Content Sheet */}
+                          <div className="card-bottom-sheet">
+                            <div className="sheet-info">
+                              <h3 className="sheet-title">{project.title}</h3>
+                              <p className="sheet-subtitle">
+                                {project.badge || '32MB'}
+                              </p>
+                            </div>
+
+                            <a
+                              href={project.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="sheet-install-btn"
+                              style={{
+                                background: theme.accentColor,
+                                boxShadow: `0 4px 15px ${theme.accentColor}66`
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span>Truy cập trang web</span>
+                            </a>
+                          </div>
                         </div>
-                      )}
-                    </div>
-
-                  </div>
-
-                  {/* CTA Actions (Below the Card) */}
-                  <div className="project-actions-row animate-enter-4">
-                    <a
-                      href={activeProject.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-project-primary"
-                    >
-                      <span>Truy Cập Trang Web</span>
-                      <ExternalLink size={15} />
-                    </a>
+                      );
+                    })}
                   </div>
                 </div>
               )}
