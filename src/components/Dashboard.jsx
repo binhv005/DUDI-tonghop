@@ -464,13 +464,23 @@ export function Dashboard({ onBackToHome }) {
     showToast('Đã tải xuống file CSV danh sách form liên hệ');
   };
 
-  // Quick clear data / Refresh
-  const handleResetData = () => {
-    if (window.confirm('Bạn có muốn làm mới và xóa toàn bộ dữ liệu tạm trên thiết bị này?')) {
-      setLeads([]);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      showToast('Đã làm mới và xóa sạch dữ liệu trên trình duyệt');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Handle Reload Data (Làm mới & tải lại dữ liệu)
+  const handleReloadData = () => {
+    setIsRefreshing(true);
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (saved) {
+        setLeads(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to reload leads from localStorage', e);
     }
+    showToast('Đã làm mới và đồng bộ danh sách dữ liệu');
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
   };
 
   return (
@@ -509,15 +519,6 @@ export function Dashboard({ onBackToHome }) {
               </div>
             </div>
 
-            {/* Desktop Collapse Toggle */}
-            <button 
-              className="sidebar-toggle-btn hide-mobile"
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              title={isSidebarCollapsed ? 'Mở rộng Sidebar' : 'Thu gọn Sidebar'}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </button>
-
             {/* Mobile Close Button */}
             <button 
               className="sidebar-close-mobile show-mobile-only"
@@ -531,11 +532,6 @@ export function Dashboard({ onBackToHome }) {
           <div className="sidebar-nav-container">
             {/* 8 DUDI Services & All Inquiries */}
             <div className="sidebar-menu-section">
-              <div className="section-label-row">
-                <span className="sidebar-section-label">8 DỊCH VỤ DUDI SOFTWARE</span>
-                <span className="services-count-tag">{SERVICES_DATA.length}</span>
-              </div>
-              
               <nav className="sidebar-menu-list">
                 <button 
                   className={`sidebar-nav-item ${selectedServiceFilter === 'all' ? 'active' : ''}`}
@@ -625,15 +621,6 @@ export function Dashboard({ onBackToHome }) {
               <span className="hide-mobile">Xuất CSV</span>
             </button>
 
-            {/* Reset / Reload Data button */}
-            <button 
-              className="btn-header-icon"
-              onClick={handleResetData}
-              title="Khôi phục dữ liệu form mẫu ban đầu"
-            >
-              <RefreshCw size={15} />
-            </button>
-
             {/* Back to Home button */}
             <button 
               className="btn-header-secondary hide-mobile"
@@ -642,6 +629,15 @@ export function Dashboard({ onBackToHome }) {
             >
               <Compass size={16} />
               <span>Về Trang Dịch Vụ</span>
+            </button>
+
+            {/* Reload Data button (nằm ngoài cùng) */}
+            <button 
+              className="btn-header-icon"
+              onClick={handleReloadData}
+              title="Làm mới & tải lại danh sách (Reload)"
+            >
+              <RefreshCw size={15} className={isRefreshing ? 'spin-anim' : ''} />
             </button>
           </div>
         </header>
@@ -724,7 +720,6 @@ export function Dashboard({ onBackToHome }) {
                     <th>DỊCH VỤ YÊU CẦU</th>
                     <th>NGÂN SÁCH</th>
                     <th>TRẠNG THÁI XỬ LÝ</th>
-                    <th>PHÂN CÔNG</th>
                     <th className="text-right">THAO TÁC</th>
                   </tr>
                 </thead>
@@ -830,20 +825,6 @@ export function Dashboard({ onBackToHome }) {
                               ))}
                             </select>
                           </div>
-                        </td>
-
-                        {/* Assignee */}
-                        <td>
-                          <select 
-                            value={lead.assignedTo || 'Chưa phân công'}
-                            onChange={(e) => handleUpdateAssignee(lead.id, e.target.value)}
-                            className="assignee-select"
-                          >
-                            <option value="Chưa phân công">Chưa phân công</option>
-                            {TECH_TEAM.map(t => (
-                              <option key={t.id} value={t.name}>{t.name}</option>
-                            ))}
-                          </select>
                         </td>
 
                         {/* Action buttons */}
