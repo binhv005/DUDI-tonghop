@@ -115,6 +115,51 @@ export function Dashboard({ onBackToHome }) {
     );
   });
 
+  // Sidebar & Navigation Filters
+  const [selectedServiceFilter, setSelectedServiceFilter] = useState('all'); // 'all' or serviceId
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all'); // 'all' or status key
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'kanban'
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Modals & Dialogs State
+  const [activeLeadDetail, setActiveLeadDetail] = useState(null);
+  const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    leadId: null,
+    subMessage: '',
+    confirmText: 'Xóa yêu cầu',
+    cancelText: 'Hủy bỏ',
+    type: 'danger',
+    onConfirm: null
+  });
+  const [toast, setToast] = useState(null);
+
+  // New Lead Form State
+  const [newLeadForm, setNewLeadForm] = useState({
+    customerName: '',
+    phone: '',
+    email: '',
+    company: '',
+    serviceId: 'dudi-page',
+    budget: '',
+    priority: 'high',
+    requirements: ''
+  });
+
+  const [newNoteInput, setNewNoteInput] = useState('');
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type, id: Date.now() });
+    setTimeout(() => {
+      setToast(null);
+    }, 3600);
+  };
+
   // Save to localStorage when leads change
   useEffect(() => {
     try {
@@ -146,39 +191,24 @@ export function Dashboard({ onBackToHome }) {
     }
   }, []);
 
-  // Sidebar & Navigation Filters
-  const [selectedServiceFilter, setSelectedServiceFilter] = useState('all'); // 'all' or serviceId
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all'); // 'all' or status key
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'kanban'
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-
-  // Modals
-  const [activeLeadDetail, setActiveLeadDetail] = useState(null);
-  const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
-  const [toast, setToast] = useState(null);
-
-  // New Lead Form State
-  const [newLeadForm, setNewLeadForm] = useState({
-    customerName: '',
-    phone: '',
-    email: '',
-    company: '',
-    serviceId: 'dudi-page',
-    budget: '',
-    priority: 'high',
-    requirements: ''
-  });
-
-  const [newNoteInput, setNewNoteInput] = useState('');
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type, id: Date.now() });
-    setTimeout(() => {
-      setToast(null);
-    }, 3200);
-  };
+  // Handle ESC key to dismiss dialogs/modals smoothly
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (confirmDialog.isOpen) {
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } else if (activeLeadDetail) {
+          setActiveLeadDetail(null);
+        } else if (isNewLeadModalOpen) {
+          setIsNewLeadModalOpen(false);
+        } else if (isFirebaseSettingsOpen) {
+          setIsFirebaseSettingsOpen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmDialog.isOpen, activeLeadDetail, isNewLeadModalOpen, isFirebaseSettingsOpen]);
 
   // Lead Counts by Service
   const serviceCounts = useMemo(() => {
@@ -294,20 +324,33 @@ export function Dashboard({ onBackToHome }) {
     showToast(`Đã phân công ${assigneeName} phụ trách đơn ${leadId}`);
   };
 
-  // Handle Delete Lead
+  // Handle Delete Lead Confirmation Dialog Trigger
   const handleDeleteLead = (leadId) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa yêu cầu liên hệ ${leadId}?`)) {
-      setLeads(prev => prev.filter(l => l.id !== leadId));
-      if (activeLeadDetail && activeLeadDetail.id === leadId) {
-        setActiveLeadDetail(null);
-      }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xác Nhận Xóa Yêu Cầu',
+      message: 'Bạn có chắc chắn muốn xóa vĩnh viễn yêu cầu liên hệ',
+      leadId: leadId,
+      confirmText: 'Xác Nhận Xóa',
+      cancelText: 'Hủy Bỏ',
+      type: 'danger',
+      onConfirm: () => executeDeleteLead(leadId)
+    });
+  };
 
-      if (isFirebaseConfigured()) {
-        deleteLeadFromFirebase(leadId).catch(console.error);
-      }
-
-      showToast(`Đã xóa yêu cầu ${leadId}`);
+  // Execute Actual Lead Deletion
+  const executeDeleteLead = (leadId) => {
+    setLeads(prev => prev.filter(l => l.id !== leadId));
+    if (activeLeadDetail && activeLeadDetail.id === leadId) {
+      setActiveLeadDetail(null);
     }
+
+    if (isFirebaseConfigured()) {
+      deleteLeadFromFirebase(leadId).catch(console.error);
+    }
+
+    showToast(`Đã xóa thành công yêu cầu ${leadId}`, 'success');
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
   };
 
   // Handle Add Note to Lead
@@ -343,14 +386,14 @@ export function Dashboard({ onBackToHome }) {
     }
 
     setNewNoteInput('');
-    showToast('Đã thêm ghi chú xử lý');
+    showToast('Đã thêm ghi chú xử lý', 'success');
   };
 
   // Handle Create New Form Lead Submission
   const handleCreateNewLead = async (e) => {
     e.preventDefault();
     if (!newLeadForm.customerName.trim() || !newLeadForm.phone.trim()) {
-      alert('Vui lòng nhập tên khách hàng và số điện thoại');
+      showToast('Vui lòng nhập họ tên khách hàng và số điện thoại liên hệ', 'warning');
       return;
     }
 
@@ -404,14 +447,14 @@ export function Dashboard({ onBackToHome }) {
       priority: 'high',
       requirements: ''
     });
-    showToast(`Đã tiếp nhận yêu cầu liên hệ mới [${newId}] từ ${newLeadObj.customerName}`);
+    showToast(`Đã tiếp nhận yêu cầu liên hệ mới [${newId}] từ ${newLeadObj.customerName}`, 'success');
   };
 
   // Handle Save Custom Firebase Config
   const handleSaveFirebaseConfig = (e) => {
     e.preventDefault();
     if (!firebaseConfigForm.apiKey.trim() || !firebaseConfigForm.projectId.trim()) {
-      alert('Vui lòng nhập tối thiểu API Key và Project ID của Firebase');
+      showToast('Vui lòng nhập tối thiểu API Key và Project ID của Firebase', 'warning');
       return;
     }
 
@@ -487,13 +530,15 @@ export function Dashboard({ onBackToHome }) {
     <div className={`dashboard-root-layout lead-dashboard-mode ${isSidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
       {/* Toast Notification */}
       {toast && (
-        <div className={`dashboard-toast toast-${toast.type}`}>
+        <div className={`dashboard-toast toast-${toast.type || 'success'}`}>
           <div className="toast-icon">
             {toast.type === 'success' && <CheckCircle2 size={18} />}
             {toast.type === 'warning' && <AlertTriangle size={18} />}
+            {toast.type === 'error' && <AlertCircle size={18} />}
+            {toast.type === 'info' && <Sparkles size={18} />}
           </div>
           <span className="toast-text">{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}>
+          <button className="toast-close" onClick={() => setToast(null)} title="Đóng">
             <X size={14} />
           </button>
         </div>
@@ -1070,44 +1115,6 @@ export function Dashboard({ onBackToHome }) {
                       ))}
                     </select>
                   </div>
-
-                  {/* Notes & History Log */}
-                  <div className="lead-notes-history-section">
-                    <span className="notes-heading">Nhật Ký & Ghi Chú Trao Đổi ({activeLeadDetail.notes?.length || 0})</span>
-                    
-                    <div className="notes-list-scroll">
-                      {(activeLeadDetail.notes || []).map(note => (
-                        <div key={note.id} className="note-item-bubble">
-                          <div className="note-bubble-header">
-                            <span className="note-author">{note.author}</span>
-                            <span className="note-time">{note.time}</span>
-                          </div>
-                          <p className="note-text">{note.text}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="add-note-input-row">
-                      <input 
-                        type="text"
-                        placeholder="Thêm ghi chú cuộc gọi, hẹn gặp, báo giá..."
-                        value={newNoteInput}
-                        onChange={(e) => setNewNoteInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddNote(activeLeadDetail.id);
-                          }
-                        }}
-                        className="modal-note-input"
-                      />
-                      <button 
-                        className="btn-add-note"
-                        onClick={() => handleAddNote(activeLeadDetail.id)}
-                      >
-                        <Send size={15} />
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1370,6 +1377,66 @@ export function Dashboard({ onBackToHome }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= CUSTOM CONFIRMATION DIALOG MODAL ================= */}
+      {confirmDialog.isOpen && (
+        <div 
+          className="lead-modal-backdrop confirm-modal-backdrop" 
+          onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        >
+          <div 
+            className="lead-confirm-dialog-card" 
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+          >
+            <div className="confirm-dialog-header">
+              <div className={`confirm-icon-badge badge-${confirmDialog.type || 'danger'}`}>
+                {confirmDialog.type === 'danger' ? <Trash2 size={24} /> : <AlertTriangle size={24} />}
+              </div>
+              <button 
+                className="confirm-close-btn" 
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                title="Đóng (Esc)"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="confirm-dialog-content">
+              <h3 id="confirm-dialog-title" className="confirm-dialog-title">{confirmDialog.title}</h3>
+              <p className="confirm-dialog-message">
+                {confirmDialog.message}{' '}
+                {confirmDialog.leadId && (
+                  <strong className="confirm-lead-pill">{confirmDialog.leadId}</strong>
+                )}?
+              </p>
+            </div>
+
+            <div className="confirm-dialog-actions">
+              <button 
+                type="button" 
+                className="btn-confirm-cancel"
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+              >
+                {confirmDialog.cancelText || 'Hủy bỏ'}
+              </button>
+              <button 
+                type="button" 
+                className={`btn-confirm-action action-${confirmDialog.type || 'danger'}`}
+                onClick={() => {
+                  if (confirmDialog.onConfirm) confirmDialog.onConfirm();
+                }}
+                autoFocus
+              >
+                {confirmDialog.type === 'danger' && <Trash2 size={16} />}
+                <span>{confirmDialog.confirmText || 'Xác nhận xóa'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -7,24 +7,6 @@ const INITIAL_MESSAGES = [
     sender: 'bot',
     text: "Xin chào! 👋\nTôi là trợ lý ảo AI của DUDI.\nTôi có thể hỗ trợ gì cho bạn hôm nay?",
     time: '10:30'
-  },
-  {
-    id: 2,
-    sender: 'user',
-    text: 'Bạn có thể giải thích ngắn gọn cách AI hoạt động và giải pháp của DUDI không?',
-    time: '10:31'
-  },
-  {
-    id: 3,
-    sender: 'bot',
-    text: "Dạ được chứ! 🤖\nAI (Trí tuệ nhân tạo) giúp hệ thống tự động học hỏi từ dữ liệu, nhận diện mẫu và ra quyết định thông minh — hỗ trợ tối ưu vận hành ứng dụng và nâng cao hiệu suất doanh nghiệp.",
-    time: '10:31'
-  },
-  {
-    id: 4,
-    sender: 'user',
-    text: 'Thông tin rất hữu ích! Cảm ơn bạn 😊',
-    time: '10:32'
   }
 ];
 
@@ -42,6 +24,39 @@ const SUGGESTED_PROMPTS = [
   "⚡ Báo giá & Quy trình",
   "📞 Liên hệ hotline DUDI"
 ];
+
+// Helper parser to render Markdown bold (**bold**), italic (*italic*), and inline code (`code`)
+const renderFormattedLine = (line) => {
+  if (!line) return '\u00A0';
+
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  const segments = line.split(regex);
+
+  return segments.map((seg, idx) => {
+    if (seg.startsWith('**') && seg.endsWith('**') && seg.length >= 4) {
+      return (
+        <strong key={idx} className="bubble-bold">
+          {seg.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (seg.startsWith('`') && seg.endsWith('`') && seg.length >= 2) {
+      return (
+        <code key={idx} className="bubble-code">
+          {seg.slice(1, -1)}
+        </code>
+      );
+    }
+    if (seg.startsWith('*') && seg.endsWith('*') && seg.length >= 2) {
+      return (
+        <em key={idx} className="bubble-italic">
+          {seg.slice(1, -1)}
+        </em>
+      );
+    }
+    return seg;
+  });
+};
 
 export const ChatWidget = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
@@ -106,9 +121,86 @@ export const ChatWidget = ({ isOpen, onClose }) => {
     return `${hours}:${minutesStr} ${ampm}`;
   };
 
+  const sendToAIApi = async (userText, currentMessages) => {
+    setIsTyping(true);
+    const apiUrl = import.meta.env.VITE_AI_API_URL || '/api-ai/chat';
+
+    try {
+      // Standardized format for AI backend (Next.js / Vercel AI SDK / LangChain / Gemini)
+      const formattedHistory = currentMessages.slice(-8).map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+        },
+        body: JSON.stringify({
+          message: userText,
+          prompt: userText,
+          query: userText,
+          question: userText,
+          messages: formattedHistory,
+          history: formattedHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`);
+      }
+
+      // Check content-type to parse JSON or Plain text
+      const contentType = response.headers.get('content-type') || '';
+      let replyText = '';
+
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        replyText = 
+          data.reply || 
+          data.message || 
+          data.text || 
+          data.response || 
+          data.answer || 
+          data.content || 
+          (typeof data === 'string' ? data : JSON.stringify(data));
+      } else {
+        // Plain text or streaming chunk response
+        replyText = await response.text();
+      }
+
+      if (replyText && replyText.trim()) {
+        const botMsg = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: replyText.trim(),
+          time: getCurrentTime(),
+        };
+        setMessages((prev) => [...prev, botMsg]);
+      } else {
+        throw new Error('Server AI trả về nội dung rỗng');
+      }
+    } catch (err) {
+      console.error('❌ Lỗi kết nối AI Backend:', err);
+      
+      const botMsg = {
+        id: Date.now() + 1,
+        sender: 'bot',
+        text: `⚠️ [Lỗi kết nối AI]: ${err.message || 'Không thể kết nối đến máy chủ AI'}.\n(Hãy kiểm tra tab F12 Console hoặc đảm bảo Backend ở localhost:3000 đang bật)`,
+        time: getCurrentTime(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const handleSend = (e) => {
     e?.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isTyping) return;
 
     const userText = inputValue.trim();
     const userMsg = {
@@ -118,25 +210,16 @@ export const ChatWidget = ({ isOpen, onClose }) => {
       time: getCurrentTime()
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInputValue('');
-    setIsTyping(true);
 
-    // Simulate AI thinking and reply
-    setTimeout(() => {
-      const randomResponse = BOT_RESPONSES[Math.floor(Math.random() * BOT_RESPONSES.length)];
-      const botMsg = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: randomResponse,
-        time: getCurrentTime()
-      };
-      setMessages((prev) => [...prev, botMsg]);
-      setIsTyping(false);
-    }, 900);
+    sendToAIApi(userText, updatedMessages);
   };
 
   const handleSelectPrompt = (promptText) => {
+    if (isTyping) return;
+
     const userMsg = {
       id: Date.now(),
       sender: 'user',
@@ -144,30 +227,10 @@ export const ChatWidget = ({ isOpen, onClose }) => {
       time: getCurrentTime()
     };
 
-    setMessages((prev) => [...prev, userMsg]);
-    setIsTyping(true);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
 
-    setTimeout(() => {
-      let reply = BOT_RESPONSES[Math.floor(Math.random() * BOT_RESPONSES.length)];
-      if (promptText.includes('dịch vụ') || promptText.includes('DUDI cung cấp')) {
-        reply = "DUDI cung cấp hệ sinh thái toàn diện: Thiết kế App/Web chuyên sâu, Vận hành tối ưu hiệu năng và Ứng dụng AI thông minh. Bạn có thể lướt danh sách dịch vụ ngay trên trang web!";
-      } else if (promptText.includes('hotline') || promptText.includes('Liên hệ')) {
-        reply = "Bạn có thể gọi trực tiếp đến Hotline: 0909 163 821 hoặc nhấn nút Zalo ở góc màn hình để được hỗ trợ 24/7 nhé! 📞";
-      } else if (promptText.includes('Báo giá') || promptText.includes('Quy trình')) {
-        reply = "DUDI cung cấp nhiều gói giải pháp linh hoạt phù hợp với quy mô từ Startup đến Doanh nghiệp lớn. Hãy liên hệ với chúng tôi để nhận bảng báo giá chi tiết!";
-      } else if (promptText.includes('AI')) {
-        reply = "Giải pháp AI của DUDI bao gồm trợ lý ảo thông minh, tự động hóa CSKH 24/7 và hệ thống phân tích dữ liệu nâng cao trải nghiệm người dùng.";
-      }
-
-      const botMsg = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: reply,
-        time: getCurrentTime()
-      };
-      setMessages((prev) => [...prev, botMsg]);
-      setIsTyping(false);
-    }, 850);
+    sendToAIApi(promptText, updatedMessages);
   };
 
   const handleResetChat = () => {
@@ -237,7 +300,7 @@ export const ChatWidget = ({ isOpen, onClose }) => {
                 <div className={`chat-bubble ${isBot ? 'bot-bubble' : 'user-bubble'}`}>
                   {msg.text.split('\n').map((line, lIdx) => (
                     <p key={lIdx} className="bubble-text-line">
-                      {line}
+                      {renderFormattedLine(line)}
                     </p>
                   ))}
                 </div>
