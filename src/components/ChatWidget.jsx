@@ -247,7 +247,7 @@ export const ChatWidget = ({ isOpen, onClose }) => {
           <div className="chat-header-meta">
             <h3 className="chat-header-title">DU - Trợ lý AI DUDI</h3>
             <div className="chat-header-status">
-              <span>Trực tuyến 24/7 • DUDI AI Backend</span>
+              <span>Trực tuyến 24/7</span>
               <span className="status-dot-green"></span>
             </div>
           </div>
