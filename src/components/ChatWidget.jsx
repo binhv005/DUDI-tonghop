@@ -1,138 +1,134 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, MoreHorizontal, CheckCheck, Sparkles, RefreshCw } from 'lucide-react';
+import { Send, X, CheckCheck, Sparkles, RefreshCw, MessageSquare, Phone, RotateCcw } from 'lucide-react';
+
+const AI_API_URL = import.meta.env.VITE_AI_API_URL || 'https://dudi-ai.onrender.com/api/chat';
+
+const BOT_WELCOME_TEXT = "Xin chào! 👋\nTôi là DU - Trợ lý ảo AI của DUDI SOFTWARE.\nTôi có thể hỗ trợ gì cho bạn hôm nay?";
 
 const INITIAL_MESSAGES = [
   {
     id: 1,
     sender: 'bot',
-    text: "Xin chào! 👋\nTôi là trợ lý ảo AI của DUDI.\nTôi có thể hỗ trợ gì cho bạn hôm nay?",
+    text: BOT_WELCOME_TEXT,
     time: '10:30'
   }
 ];
 
-const BOT_RESPONSES = [
-  "DUDI cung cấp các giải pháp tối ưu hóa vận hành Mobile App, AI Chatbot và hạ tầng Cloud thông minh. Bạn muốn tìm hiểu thêm về dịch vụ nào?",
-  "Hệ thống DUDI giúp tự động hóa quy trình, tăng tốc độ xử lý dữ liệu và cải thiện trải nghiệm người dùng lên đến 300%.",
-  "Bạn có thể nhấn vào các thẻ dịch vụ trên trang hoặc liên hệ hotline 0909 163 821 để được đội ngũ DUDI tư vấn chi tiết nhé! ✨",
-  "Tuyệt vời! Nếu bạn có bất kỳ câu hỏi nào về thiết kế, công nghệ hay tích hợp hệ thống, tôi luôn sẵn sàng hỗ trợ 🚀."
-];
-
 const SUGGESTED_PROMPTS = [
-  "💡 DUDI cung cấp dịch vụ gì?",
-  "🚀 Tư vấn thiết kế App & Web",
-  "🤖 Tích hợp AI Chatbot",
-  "⚡ Báo giá & Quy trình",
-  "📞 Liên hệ hotline DUDI"
+  "💡 DUDI cung cấp các dịch vụ gì?",
+  "💰 Báo giá chi tiết các gói giải pháp",
+  "⚡ Quy trình triển khai dự án tại DUDI",
+  "📞 Kết nối chuyên viên tư vấn trực tiếp"
 ];
 
-// Helper parser to render Markdown bold (**bold**), italic (*italic*), and inline code (`code`)
-const renderFormattedLine = (line) => {
-  if (!line) return '\u00A0';
+function FormattedText({ text, isBot }) {
+  if (!text) return null;
+  const lines = text.split('\n');
 
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
-  const segments = line.split(regex);
+  const parseInline = (str) => {
+    const regex = /(\*\*.*?\*\*|\*[^*]+?\*)/g;
+    const parts = str.split(regex);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        return <strong key={idx} className="font-bold">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+        return <em key={idx} className="italic opacity-90">{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+  };
 
-  return segments.map((seg, idx) => {
-    if (seg.startsWith('**') && seg.endsWith('**') && seg.length >= 4) {
-      return (
-        <strong key={idx} className="bubble-bold">
-          {seg.slice(2, -2)}
-        </strong>
-      );
-    }
-    if (seg.startsWith('`') && seg.endsWith('`') && seg.length >= 2) {
-      return (
-        <code key={idx} className="bubble-code">
-          {seg.slice(1, -1)}
-        </code>
-      );
-    }
-    if (seg.startsWith('*') && seg.endsWith('*') && seg.length >= 2) {
-      return (
-        <em key={idx} className="bubble-italic">
-          {seg.slice(1, -1)}
-        </em>
-      );
-    }
-    return seg;
-  });
-};
+  return (
+    <div className="space-y-1">
+      {lines.map((line, lIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={lIdx} className="h-1" />;
+        const isBullet = trimmed.startsWith('- ') || trimmed.startsWith('• ') || (trimmed.startsWith('* ') && !trimmed.startsWith('**'));
+        const isNumbered = /^\d+\.\s/.test(trimmed);
+
+        if (isBullet) {
+          return (
+            <div key={lIdx} className="flex items-start gap-1.5 pl-0.5">
+              <span className="select-none font-bold text-xs opacity-75">•</span>
+              <span className="flex-1">{parseInline(trimmed.replace(/^[-•*]\s+/, ''))}</span>
+            </div>
+          );
+        }
+        if (isNumbered) {
+          const numMatch = trimmed.match(/^(\d+)\./);
+          const num = numMatch ? numMatch[1] : '•';
+          return (
+            <div key={lIdx} className="flex items-start gap-1.5 pl-0.5">
+              <span className="select-none font-bold text-xs opacity-80">{num}.</span>
+              <span className="flex-1">{parseInline(trimmed.replace(/^\d+\.\s+/, ''))}</span>
+            </div>
+          );
+        }
+        return <div key={lIdx}>{parseInline(line)}</div>;
+      })}
+    </div>
+  );
+}
 
 export const ChatWidget = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const modalRef = useRef(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
-      scrollToBottom();
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 300);
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (window.innerWidth > 768) {
+        setTimeout(() => inputRef.current?.focus(), 300);
+      }
     }
-  }, [isOpen, messages, isTyping]);
+  }, [messages, isTyping, isOpen]);
 
-  // Click outside to close chat modal
   useEffect(() => {
     if (!isOpen) return;
-
     const handleClickOutside = (event) => {
+      const isToggleBtn = event.target.closest('[data-chat-toggle="true"]');
+      if (isToggleBtn) return;
       if (modalRef.current && !modalRef.current.contains(event.target)) {
-        // Don't close if user clicked the toggle mascot button itself (handled by toggle)
-        const mascotBtn = event.target.closest('.btn-robot-mascot');
-        if (!mascotBtn) {
-          onClose();
-        }
-      }
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
         onClose();
       }
     };
-
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    window.addEventListener('keydown', handleKeyDown);
-
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
 
   const getCurrentTime = () => {
     const now = new Date();
-    let hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const minutesStr = minutes < 10 ? '0' + minutes : minutes;
-    return `${hours}:${minutesStr} ${ampm}`;
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   };
 
   const sendToAIApi = async (userText, currentMessages) => {
     setIsTyping(true);
-    const apiUrl = import.meta.env.VITE_AI_API_URL || '/api-ai/chat';
-
-    try {
-      // Standardized format for AI backend (Next.js / Vercel AI SDK / LangChain / Gemini)
-      const formattedHistory = currentMessages.slice(-8).map((m) => ({
+    const historyPayload = currentMessages
+      .filter((m) => !m.isError)
+      .map((m) => ({
         role: m.sender === 'user' ? 'user' : 'assistant',
         content: m.text,
       }));
 
-      const response = await fetch(apiUrl, {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 35000);
+
+      const response = await fetch(AI_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,35 +136,24 @@ export const ChatWidget = ({ isOpen, onClose }) => {
         },
         body: JSON.stringify({
           message: userText,
-          prompt: userText,
-          query: userText,
-          question: userText,
-          messages: formattedHistory,
-          history: formattedHistory,
+          history: historyPayload,
         }),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`);
+        throw new Error(`Máy chủ phản hồi mã: ${response.status}`);
       }
 
-      // Check content-type to parse JSON or Plain text
       const contentType = response.headers.get('content-type') || '';
       let replyText = '';
 
       if (contentType.includes('application/json')) {
         const data = await response.json();
-        replyText = 
-          data.reply || 
-          data.message || 
-          data.text || 
-          data.response || 
-          data.answer || 
-          data.content || 
-          (typeof data === 'string' ? data : JSON.stringify(data));
+        replyText = data.reply || data.message || data.text || data.response || data.answer || JSON.stringify(data);
       } else {
-        // Plain text or streaming chunk response
         replyText = await response.text();
       }
 
@@ -181,16 +166,20 @@ export const ChatWidget = ({ isOpen, onClose }) => {
         };
         setMessages((prev) => [...prev, botMsg]);
       } else {
-        throw new Error('Server AI trả về nội dung rỗng');
+        throw new Error('Không nhận được nội dung từ AI');
       }
     } catch (err) {
       console.error('❌ Lỗi kết nối AI Backend:', err);
-      
+      const isTimeout = err.name === 'AbortError';
       const botMsg = {
         id: Date.now() + 1,
         sender: 'bot',
-        text: `⚠️ [Lỗi kết nối AI]: ${err.message || 'Không thể kết nối đến máy chủ AI'}.\n(Hãy kiểm tra tab F12 Console hoặc đảm bảo Backend ở localhost:3000 đang bật)`,
+        text: isTimeout 
+          ? "⚠️ Kết nối tới máy chủ AI đang bị trễ do server đang khởi động. Bạn vui lòng thử lại sau giây lát nhé!"
+          : "⚠️ Không thể kết nối tới máy chủ AI DUDI. Vui lòng kiểm tra lại kết nối hoặc liên hệ Hotline/Zalo để được hỗ trợ.",
         time: getCurrentTime(),
+        isError: true,
+        retryText: userText
       };
       setMessages((prev) => [...prev, botMsg]);
     } finally {
@@ -219,22 +208,26 @@ export const ChatWidget = ({ isOpen, onClose }) => {
 
   const handleSelectPrompt = (promptText) => {
     if (isTyping) return;
-
     const userMsg = {
       id: Date.now(),
       sender: 'user',
       text: promptText,
       time: getCurrentTime()
     };
-
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
-
     sendToAIApi(promptText, updatedMessages);
   };
 
   const handleResetChat = () => {
-    setMessages(INITIAL_MESSAGES);
+    setMessages([
+      {
+        id: Date.now(),
+        sender: 'bot',
+        text: BOT_WELCOME_TEXT,
+        time: getCurrentTime()
+      }
+    ]);
   };
 
   if (!isOpen) return null;
@@ -252,9 +245,9 @@ export const ChatWidget = ({ isOpen, onClose }) => {
             />
           </div>
           <div className="chat-header-meta">
-            <h3 className="chat-header-title">Trợ lý AI DUDI</h3>
+            <h3 className="chat-header-title">DU - Trợ lý AI DUDI</h3>
             <div className="chat-header-status">
-              <span>Luôn sẵn sàng hỗ trợ bạn</span>
+              <span>Trực tuyến 24/7 • DUDI AI Backend</span>
               <span className="status-dot-green"></span>
             </div>
           </div>
@@ -263,7 +256,7 @@ export const ChatWidget = ({ isOpen, onClose }) => {
         <div className="chat-header-actions">
           <button 
             type="button" 
-            className="chat-action-btn" 
+            className="chat-action-btn cursor-pointer" 
             title="Làm mới trò chuyện"
             onClick={handleResetChat}
           >
@@ -271,7 +264,7 @@ export const ChatWidget = ({ isOpen, onClose }) => {
           </button>
           <button 
             type="button" 
-            className="chat-action-btn" 
+            className="chat-action-btn cursor-pointer" 
             title="Đóng chat" 
             onClick={onClose}
           >
@@ -297,12 +290,17 @@ export const ChatWidget = ({ isOpen, onClose }) => {
               )}
 
               <div className="chat-message-content">
-                <div className={`chat-bubble ${isBot ? 'bot-bubble' : 'user-bubble'}`}>
-                  {msg.text.split('\n').map((line, lIdx) => (
-                    <p key={lIdx} className="bubble-text-line">
-                      {renderFormattedLine(line)}
-                    </p>
-                  ))}
+                <div className={`chat-bubble ${isBot ? (msg.isError ? 'bot-bubble is-error' : 'bot-bubble') : 'user-bubble'}`}>
+                  <FormattedText text={msg.text} isBot={isBot} />
+                  {msg.isError && msg.retryText && (
+                    <button
+                      onClick={() => handleSelectPrompt(msg.retryText)}
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-300 font-semibold underline cursor-pointer"
+                    >
+                      <RotateCcw size={12} />
+                      <span>Thử gửi lại</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="chat-meta-time">
@@ -328,6 +326,7 @@ export const ChatWidget = ({ isOpen, onClose }) => {
                 <span className="typing-dot"></span>
                 <span className="typing-dot"></span>
                 <span className="typing-dot"></span>
+                <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '6px' }}>DU đang soạn câu trả lời...</span>
               </div>
             </div>
           </div>
@@ -343,7 +342,8 @@ export const ChatWidget = ({ isOpen, onClose }) => {
             <button
               key={idx}
               type="button"
-              className="chat-suggestion-chip"
+              disabled={isTyping}
+              className="chat-suggestion-chip cursor-pointer disabled:opacity-50"
               onClick={() => handleSelectPrompt(prompt)}
             >
               {prompt}
@@ -359,14 +359,15 @@ export const ChatWidget = ({ isOpen, onClose }) => {
             ref={inputRef}
             type="text"
             className="chat-input-field"
-            placeholder="Nhập tin nhắn của bạn..."
+            disabled={isTyping}
+            placeholder={isTyping ? "Trợ lý AI đang phản hồi..." : "Nhập tin nhắn của bạn..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
           />
           <button 
             type="submit" 
-            className="chat-send-btn" 
-            disabled={!inputValue.trim()}
+            className="chat-send-btn cursor-pointer disabled:opacity-50" 
+            disabled={!inputValue.trim() || isTyping}
             aria-label="Gửi tin nhắn"
           >
             <Send size={16} />
